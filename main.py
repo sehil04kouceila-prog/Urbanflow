@@ -2,7 +2,7 @@
 import pygame
 import sys
 import random
-from classes import Sommet#, Agent
+from classes import Sommet, Agent , Client
 import networkx as nx
 
 # Initialisation de pygame
@@ -23,33 +23,31 @@ right_panel = pygame.Rect(LEFT_WIDTH, 0, RIGHT_WIDTH, HEIGHT)
 marge=int(HEIGHT * 0.05)
 x=marge
 y=marge
-langeur=int(HEIGHT -2*marge)
+longueur=int(HEIGHT -2*marge)
 largeur=int(LEFT_WIDTH -2*marge)
-#couleur=(248, 245, 235)
 couleur = (230, 230, 230)
 
 N=20
 global n, dx, dy, mx, my
 
-n = round((largeur * N) / langeur)
+n = max(2, round((largeur * N) / longueur))
 
 dx = (largeur - 2) / (n - 1)
-dy = (langeur - 2) / (N - 1)
+dy = (longueur - 2) / (N - 1)
 
 largeur_points = (n - 1) * dx
 hauteur_points = (N - 1) * dy
 
 mx = (largeur - largeur_points) / 2
-my = (langeur - hauteur_points) / 2
+my = (longueur - hauteur_points) / 2
 
 
 
-
-###############################################################################################
+############################################################################################### dimontionnement 
 def update_layout():
     global LEFT_WIDTH, RIGHT_WIDTH
     global left_panel, right_panel
-    global marge, x, y, largeur, langeur
+    global marge, x, y, largeur, longueur
     global n, dx, dy, mx, my
 
     LEFT_WIDTH = int(WIDTH * 0.70)
@@ -63,19 +61,19 @@ def update_layout():
     x = marge
     y = marge
     largeur = LEFT_WIDTH - 2 * marge
-    langeur = HEIGHT - 2 * marge
+    longueur = HEIGHT - 2 * marge
 
-    n = round((largeur * N) / langeur)
+    n = max(2, round((largeur * N) / longueur))
 
     dx = (largeur - 2) / (n - 1)
-    dy = (langeur - 2) / (N - 1)
+    dy = (longueur - 2) / (N - 1)
 
     largeur_points = (n - 1) * dx
     hauteur_points = (N - 1) * dy
 
     mx = (largeur - largeur_points) / 2
-    my = (langeur - hauteur_points) / 2
-##################################################################################################################
+    my = (longueur - hauteur_points) / 2
+################################################################################################################## construction du graphe
 
 
 def gen_points():
@@ -92,7 +90,7 @@ def gen_sommets():
     points = gen_points()
     return [Sommet(px, py) for px, py in points]
 
-sommets = gen_sommets()
+
 
 def gen_graphe(sommets):
     G = nx.Graph()
@@ -117,9 +115,36 @@ def gen_graphe(sommets):
     T = nx.random_spanning_tree(G, seed=None)
 
     return T
-G = gen_graphe(sommets)
-#agent = Agent(0, sommets, G)
-sommet_depart = random.choice(list(G.nodes()))
+
+
+################################################################################
+
+def rebuild_network():
+    global sommets, G, sommet_depart
+
+    sommets = gen_sommets()
+    G = gen_graphe(sommets)
+    sommet_depart = random.choice(list(G.nodes()))
+
+
+
+rebuild_network()
+
+sommet_client = random.choice(list(G.nodes()))
+mon_client = Client(sommet_client)
+agents = []
+
+mon_agent = Agent(0, sommet_depart, sommets, G, mon_client)
+agents.append(mon_agent)
+
+mon_client.agent_id = mon_agent.agent_id
+
+
+
+
+
+
+
 
 
 
@@ -130,7 +155,7 @@ sommet_depart = random.choice(list(G.nodes()))
 
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE) #cree la fenetre
-pygame.display.set_caption ( " UrbanFlow Optimizer " ) # le titre
+pygame.display.set_caption ( " UrbanFlow " ) # le titre
 clock = pygame . time . Clock () # emporter le temps
 dt = 0
 running = True
@@ -149,11 +174,9 @@ while running :
 
             screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
             update_layout()
+            sommets = gen_sommets()
 
-            sommets = []
-            points = gen_points()
-            for px, py in points:
-                sommets.append(Sommet(px, py))
+            
         ###################
 
 
@@ -164,7 +187,7 @@ while running :
     pygame.draw.rect(screen, (255, 255, 255), left_panel)
     pygame.draw.rect(screen, (255, 255, 255), right_panel)
     #pygame.draw.line(screen, (210, 210, 210), (LEFT_WIDTH, 0), (LEFT_WIDTH, HEIGHT), 2)
-    carre = pygame.Rect(x - marge // 2,y - marge // 2,largeur + 2 * marge // 2,langeur + 2 * marge // 2)
+    carre = pygame.Rect(x - marge // 2,y - marge // 2,largeur + 2 * marge // 2,longueur + 2 * marge // 2)
     pygame.draw.rect(screen, couleur, carre)
     points = gen_points()
 
@@ -175,13 +198,16 @@ while running :
         s2 = sommets[b]
         pygame.draw.line(screen, (250,250,250), (s1.x, s1.y), (s2.x, s2.y), 6)
         #dessiner_route(screen, s1, s2)
+    mon_client.dessiner(screen, sommets, agents)
 
     
 
-
-
+    dt = clock.tick(60) / 1000
+    for agent in agents:
+        agent.deplacer(dt, sommets, G)
+        agent.dessiner(screen)
     pygame . display . flip ()
-    clock . tick (60)
+    #clock . tick (60)
 
 pygame . quit ()
 sys . exit ()
